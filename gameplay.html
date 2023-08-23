@@ -129,7 +129,7 @@
                     let tile = {
                         x: levelx + j * tile_width,
                         y: levely + i * tile_height,
-                        z: i,
+                        z: 20 - i,
                         used: false,
                         shape
                     };
@@ -141,7 +141,7 @@
             }
 
             level.forEach((tile) => {
-                let c = scene.add.container(tile.x, tile.y).setDepth(-tile.z * 2).setInteractive();
+                let c = scene.add.container(tile.x, tile.y).setDepth(tile.z * 2).setInteractive();
                 tile.container = c;
 
                 let t = scene.add.sprite(0,0, "tile").setInteractive();
@@ -152,23 +152,9 @@
                 t.setData(tile);
 
                 t.on("pointerdown", function() {
-                    console.log(tile);
-                    return;
                     if(!tile.used) {
-                        
-                        let top = level.filter(t => {
-                            if (t.z < tile.z) {
-                                return;
-                            }
-                            if( Math.abs(t.x - tile.x) < tile_width && Math.abs(t.y - tile.y) < tile_width  ) {
-                                t.container.preFX.addColorMatrix().grayscale(1);
-                            }
-                        })
-                        
-                        if(top != null) {
-                            return;
-                        }
                         tile.used = true;
+                        tile.container.postFX.addColorMatrix().grayscale(0);
                         // level[cx][cy] = null;
 
                         var exist = used.findLastIndex(u => u.shape == tile.shape) ;
@@ -176,13 +162,8 @@
                             exist += 1;
                             let head = used.slice(0,exist);
                             let tail = used.slice(exist);
-                            console.log({
-                                used,
-                                head,
-                                tail,
-                                exist
-                            })
-                            used = [...head, data, ...tail];
+    
+                            used = [...head, tile, ...tail];
                             scene.tweens.add({
                                 targets: c,
                                 y: boardy - 10,
@@ -201,7 +182,7 @@
                                 });
                             })
                         } else {
-                            used.push(data);
+                            used.push(tile);
                             scene.tweens.add({
                                 targets: c,
                                 y: boardy - 10,
@@ -213,9 +194,11 @@
 
                         for(var i=1;i<=5;i++) {
                             var pack = used.filter(u => u.shape == i).length;
+
                             if(pack == 3) {
-                                let completed = used.filter(u => u.tile == i);
-                                used = used.filter(u => u.tile != i);
+                                let completed = used.filter(u => u.shape == i);
+                                used = used.filter(u => u.shape != i);
+                                console.log({used, completed})
                                 used.forEach(function(u,i) {
                                     scene.tweens.add({
                                         targets: u.container,
@@ -229,6 +212,7 @@
                                 completed.forEach(u => {
                                     
                                     u.container.setDepth(1000);
+                                    console.log(u)
                                     scene.tweens.add({
                                             targets: u.container.postFX.addWipe(0.1,0,1),
                                             progress: 1,
@@ -252,27 +236,59 @@
                         if(used.length > 6) {
 
                         }
+
+                        update_color()
                     }
                 });
 
             });
 
-            level.forEach(tile => {
-                let top = level.filter(t => {
-                    if (t.z < tile.z) {
-                        return false;
+            function update_color () {
+                level.forEach(tile => {
+                    if(tile.used) {
+                        return;
                     }
-                    console.log( Math.abs(t.x - tile.x) , Math.abs(t.y - tile.y) )
-                    if( Math.abs(t.x - tile.x) < tile_width && Math.abs(t.y - tile.y) < tile_width  ) {
-                        return true;
+                    let top = level.filter(t => {
+                        if(t.used){
+                            return false;
+                        }
+                        if(tile == t){
+                            return false
+                        }
+                        if (t.z < tile.z) {
+                            return false;
+                        }
+                        
+                        if( Math.abs(t.x - tile.x) < tile_width && Math.abs(t.y - tile.y) < tile_width  ) {
+                            return true;
+                        }
+                    });
+                    let new_state = top.length == 0;
+                    if(tile.fx == null){
+                        tile.fx = tile.container.postFX.addColorMatrix()
                     }
-                });
-                tile.active = top.length == 0;
-                if(!tile.active){
-                    tile.container.destroy()
-                }
-               
-            })
+                    if(!new_state){
+                        tile.active = false;
+                        tile.fx.grayscale(1);
+                    }
+                    else if(!tile.active && new_state) {
+
+                        tile.active = true;
+                        scene.tweens.add({
+                            targets: tile.fx.grayscale(0),
+                            progress: 1,
+                            delay: 100,
+                            repeatDelay: 0,
+                            yoyo: false,
+                            repeat: 0,
+                            duration:5000
+                        })
+                        
+                    }
+                   
+                })
+            }
+            update_color()
 
     }
  
